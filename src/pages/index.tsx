@@ -1,74 +1,57 @@
 import {
   AnyQueryProcedure,
-  inferProcedureOutput,
   inferProcedureInput,
+  inferProcedureOutput,
 } from '@trpc/server';
-import { trpc } from '../utils/trpc';
 import { NextPageWithLayout } from './_app';
 import type {
   DecorateProcedure,
   UseTRPCQueryOptions,
 } from '@trpc/react/shared';
-
+import { trpc } from '~/utils/trpc';
 import { TRPCClientErrorLike } from '@trpc/client';
 
-interface GenericTableProps<
+type GenericTableProps<
   TProcedure extends AnyQueryProcedure,
-  TInput = inferProcedureInput<TProcedure>,
-  TData = inferProcedureOutput<TProcedure>,
-  TOptions = UseTRPCQueryOptions<
-    '',
+  TInput extends inferProcedureInput<TProcedure>,
+  TPath extends string,
+> = {
+  query: DecorateProcedure<TProcedure, TPath>;
+  input: TInput;
+  queryOptions: UseTRPCQueryOptions<
+    TPath,
     inferProcedureInput<TProcedure>,
-    TData,
-    TData,
+    inferProcedureOutput<TProcedure>,
+    inferProcedureOutput<TProcedure>,
     TRPCClientErrorLike<TProcedure>
-  >,
-> {
-  query: DecorateProcedure<TProcedure, ''>;
-  filter: TInput;
-  options: TOptions;
-  header: () => React.ReactNode;
-  rows: (data: TData | undefined) => React.ReactNode;
-}
+  >;
+  rows: (data: inferProcedureOutput<TProcedure> | undefined) => React.ReactNode;
+};
 
 const GenericTable = <
   TProcedure extends AnyQueryProcedure,
-  TInput = inferProcedureInput<TProcedure>,
-  TData = inferProcedureOutput<TProcedure>,
-  TOptions = UseTRPCQueryOptions<
-    '',
-    inferProcedureInput<TProcedure>,
-    TData,
-    TData,
-    TRPCClientErrorLike<TProcedure>
-  >,
+  TInput extends inferProcedureInput<TProcedure>,
+  TPath extends string,
 >({
   query,
-  header,
+  input,
+  queryOptions,
   rows,
-  filter,
-  options,
-}: GenericTableProps<TProcedure, TInput, TData, TOptions>) => {
-  const { data } = query.useQuery(filter, options);
-
-  return (
-    <>
-      {header}
-      {rows(data)}
-    </>
-  );
+}: GenericTableProps<TProcedure, TInput, TPath>) => {
+  const { data } = query.useQuery(input, queryOptions);
+  return <div>{rows(data)}</div>;
 };
 
 const LocalPage: NextPageWithLayout = () => {
-  const { data } = trpc.post.list.useQuery({});
   return (
-    <>
-      <GenericTable
-        procedure={trpc.post.list}
-        filter={{}}
-        rows={(data) => <span>{data?.title}</span>}
-      />
-    </>
+    <GenericTable
+      query={trpc.post.list}
+      input={{ limit: 10 }}
+      queryOptions={{}}
+      rows={(data) =>
+        (data?.items ?? []).map((item) => <div key={item.id}>{item.title}</div>)
+      }
+    />
   );
 };
 
